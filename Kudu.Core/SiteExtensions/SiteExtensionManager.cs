@@ -39,7 +39,7 @@ namespace Kudu.Core.SiteExtensions
                     ProjectUrl = "http://blogs.msdn.com/b/monaco/",
                     Description = "A full featured browser based development environment for editing your website",
                     // API will return a full url instead of this relative url.
-                    ExtensionUrl = "/dev"
+                    ExtensionUrl = "/Dev"
                 }
             },
             {
