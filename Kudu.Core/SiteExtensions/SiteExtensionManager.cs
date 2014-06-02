@@ -54,7 +54,6 @@ namespace Kudu.Core.SiteExtensions
                     LicenseUrl = "https://github.com/projectkudu/kudu/blob/master/LICENSE.txt",
                     ProjectUrl = "https://github.com/projectkudu/kudu",
                     Description = "List & manage running processes.",
-                    Version = typeof(SiteExtensionManager).Assembly.GetName().Version.ToString(),
                     // API will return a full url instead of this relative url.
                     ExtensionUrl = "/ProcessExplorer"
                 }
@@ -71,7 +70,6 @@ namespace Kudu.Core.SiteExtensions
                     LicenseUrl = "https://github.com/projectkudu/kudu/blob/master/LICENSE.txt",
                     ProjectUrl = "https://github.com/projectkudu/kudu",
                     Description = "Command-line Terminal for your Azure Web Sites.",
-                    Version = typeof(SiteExtensionManager).Assembly.GetName().Version.ToString(),
                     // API will return a full url instead of this relative url.
                     ExtensionUrl = "/DebugConsole"
                 }
@@ -188,6 +186,8 @@ namespace Kudu.Core.SiteExtensions
                 var info = new SiteExtensionInfo(_preInstalledExtensionDictionary[id]);
 
                 SetLocalInfo(info);
+
+                SetLatestPreInstalledExtensionVersion(info);
 
                 return info;
             }
@@ -333,6 +333,11 @@ namespace Kudu.Core.SiteExtensions
             return Path.Combine(_localRepository.Source, id);
         }
 
+        private static string GetPreInstalledDirectory(string id)
+        {
+            return "D:\\Program Files (x86)\\SiteExtensions\\" + id;
+        }
+
         private static string CreateDefaultXdtFile(string relativeUrl, bool isPreInstalled)
         {
             string physicalPath = isPreInstalled ? "%XDT_LATEST_EXTENSIONPATH%" : "%XDT_EXTENSIONPATH%";
@@ -369,11 +374,6 @@ namespace Kudu.Core.SiteExtensions
                 else
                 {
                     info.ExtensionUrl = null;
-                }
-
-                if (info.Type == SiteExtensionInfo.SiteExtensionType.PreInstalledNonKudu)
-                {
-                    info.Version = GetLatestPreInstalledExtensionVersion(info.Id);
                 }
             }
             else
@@ -449,30 +449,42 @@ namespace Kudu.Core.SiteExtensions
             return !(enabledInSetting || info.Type == SiteExtensionInfo.SiteExtensionType.PreInstalledKuduModule);
         }
 
-        private static string GetLatestPreInstalledExtensionVersion(string id)
+        private static void SetLatestPreInstalledExtensionVersion(SiteExtensionInfo info)
         {
             try
             {
-                IEnumerable<string> pathStrings = FileSystemHelpers.GetDirectories("D:\\Program Files (x86)\\SiteExtensions\\" + id);
-                SemanticVersion maxVersion = pathStrings.Max(path =>
+                if (info.Type == SiteExtensionInfo.SiteExtensionType.PreInstalledNonKudu)
                 {
-                    string versionString = FileSystemHelpers.DirectoryInfoFromDirectoryName(path).Name;
-                    SemanticVersion semVer;
-                    if (SemanticVersion.TryParse(versionString, out semVer))
+                    IEnumerable<string> pathStrings = FileSystemHelpers.GetDirectories(GetPreInstalledDirectory(info.Id));
+                    
+                    SemanticVersion maxVersion = pathStrings.Max(path =>
                     {
-                        return semVer;
-                    }
-                    else
-                    {
-                        return new SemanticVersion(0, 0, 0, 0);
-                    }
-                });
-                return maxVersion.ToString();
+                        string versionString = FileSystemHelpers.DirectoryInfoFromDirectoryName(path).Name;
+                        SemanticVersion semVer;
+                        if (SemanticVersion.TryParse(versionString, out semVer))
+                        {
+                            return semVer;
+                        }
+                        else
+                        {
+                            return new SemanticVersion(0, 0, 0, 0);
+                        }
+                    });
+
+                    info.Version = maxVersion.ToString();
+                }
+                else if (info.Type == SiteExtensionInfo.SiteExtensionType.PreInstalledKuduModule)
+                {
+                    info.Version = typeof(SiteExtensionManager).Assembly.GetName().Version.ToString();
+                }
             }
             catch (IOException)
             {
-                return null;
+                info.Version = null;
             }
+
+            info.IsLatestVersion = true;
+            info.LocalIsLatestVersion = true;
         }
     }
 }
