@@ -100,7 +100,7 @@ namespace Kudu.Core.Deployment.Generator
                 toolsPaths.Add(Path.GetDirectoryName(npmExePath));
             }
             
-            toolsPaths.Add(PathUtility.ResolveNpmGlobalPath());
+            toolsPaths.Add(PathUtility.ResolveNpmModuleGlobalPath());
 
             exe.PrependToPath(toolsPaths);
             return exe;

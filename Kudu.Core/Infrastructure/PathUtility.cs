@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Configuration;
 using System.IO;
 using SystemEnvironment = System.Environment;
 
@@ -13,10 +14,7 @@ namespace Kudu.Core.Infrastructure
         /// </summary>
         private const string DefaultNodeVersion = "0.10.5";
 
-        /// <summary>
-        /// Maps to the version of NPM that shipped with the DefaultNodeVersion
-        /// </summary>
-        private const string DefaultNpmVersion = "1.3.21";
+        private const string AppSettingNodeVersionName = "WEBSITE_NODE_DEFAULT_VERSION";
 
         internal static string ResolveGitPath()
         {
@@ -80,10 +78,11 @@ namespace Kudu.Core.Infrastructure
         {
             string programFiles = SystemEnvironment.GetFolderPath(SystemEnvironment.SpecialFolder.ProgramFilesX86);
             string npmCliPath = Path.Combine("node_modules", "npm", "bin", "npm-cli.js");
+            string npmVersion = ResolveNpmVersion();
 
             // 1. Attempt to look for the file under the S24 updated path that looks like
             // "C:\Program Files (x86)\npm\1.3.8\node_modules\npm\bin\npm-cli.js"
-            string npmPath = Path.Combine(programFiles, "npm", DefaultNpmVersion, npmCliPath);
+            string npmPath = Path.Combine(programFiles, "npm", npmVersion, npmCliPath);
             if (File.Exists(npmPath))
             {
                 return npmPath;
@@ -91,7 +90,7 @@ namespace Kudu.Core.Infrastructure
 
             // 2. Attempt to look for the file under the pre-S24 npm path
             // "C:\Program Files (x86)\npm\1.3.8\bin\npm-cli.js"
-            npmPath = Path.Combine(programFiles, "npm", DefaultNpmVersion, "bin", "npm-cli.js");
+            npmPath = Path.Combine(programFiles, "npm", npmVersion, "bin", "npm-cli.js");
             if (File.Exists(npmPath))
             {
                 return npmPath;
@@ -124,12 +123,12 @@ namespace Kudu.Core.Infrastructure
         {
             string programFiles = SystemEnvironment.GetFolderPath(SystemEnvironment.SpecialFolder.ProgramFilesX86);
 
-            string npmExePath = Path.Combine(programFiles, "npm", DefaultNpmVersion, "npm.cmd");
+            string npmExePath = Path.Combine(programFiles, "npm", ResolveNpmVersion(), "npm.cmd");
 
             return File.Exists(npmExePath) ? npmExePath : null;
         }
 
-        internal static string ResolveNpmGlobalPath()
+        internal static string ResolveNpmModuleGlobalPath()
         {
             string appDataDirectory = SystemEnvironment.GetFolderPath(SystemEnvironment.SpecialFolder.ApplicationData);
             return Path.Combine(appDataDirectory, "npm");
@@ -138,15 +137,35 @@ namespace Kudu.Core.Infrastructure
         /// <summary>
         /// Returns the path to the version of node.exe that is used for KuduScript generation and select node version
         /// </summary>
-        /// <returns>
         /// The path to DefaultNodeVersion if available, null otherwise.
-        /// </remarks>
         internal static string ResolveNodePath()
         {
             string programFiles = SystemEnvironment.GetFolderPath(SystemEnvironment.SpecialFolder.ProgramFilesX86);
 
-            string nodePath = Path.Combine(programFiles, "nodejs", DefaultNodeVersion, "node.exe");
+            string nodePath = Path.Combine(programFiles, "nodejs", ResolveNodeVersion(), "node.exe");
+
             return File.Exists(nodePath) ? nodePath : null;
+        }
+
+        internal static string ResolveNodeVersion()
+        {
+            string appSettingNodeVersion = ConfigurationManager.AppSettings[AppSettingNodeVersionName];
+
+            if (appSettingNodeVersion == null)
+            {
+                return DefaultNodeVersion;
+            }
+
+            return appSettingNodeVersion;
+        }
+
+        internal static string ResolveNpmVersion()
+        {
+            string programFiles = SystemEnvironment.GetFolderPath(SystemEnvironment.SpecialFolder.ProgramFilesX86);
+
+            string npmTxtPath = Path.Combine(programFiles, "nodejs", ResolveNodeVersion(), "npm.txt");
+
+            return FileSystemHelpers.ReadAllTextFromFile(npmTxtPath);
         }
 
         internal static string CleanPath(string path)
